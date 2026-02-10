@@ -140,3 +140,20 @@ body {
     display: none;
     fill: #666;
 }
+.btn.no {
+    touch-action: none;          /* Blokir gesture default mobile (zoom, scroll) */
+    -webkit-tap-highlight-color: transparent; /* Hilangkan highlight biru saat tap */
+    user-select: none;
+}
+
+.btn.no:active,
+.btn.no:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* Optional: efek visual saat dodge */
+.btn.no[style*="position: fixed"] {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 999; /* Pastikan di atas elemen lain */
+}
