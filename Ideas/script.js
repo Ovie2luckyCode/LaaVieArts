@@ -1,5 +1,9 @@
 let noButtonDodgeCount = 0;
-const maxDodges = 1000;
+const maxDodges = 30; // Bisa dikurangi jadi 15-20 biar cepat rejected
+
+let hasDodged = false; // Flag global: setelah dodge pertama, blokir klik permanen sementara
+
+const noButtons = document.querySelectorAll('.btn.no');
 
 function nextQuestion(accepted, questionNumber) {
     if (accepted) {
@@ -14,21 +18,95 @@ function nextQuestion(accepted, questionNumber) {
 }
 
 function handleNo() {
+    // Hanya jalankan rejected kalau sudah capai limit dodge
     if (noButtonDodgeCount >= maxDodges) {
         document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
         document.querySelector('#rejected').classList.add('active');
-        document.querySelector('.heart').style.display = 'none';
-        document.querySelector('.broken-heart').style.display = 'block';
+        document.querySelector('.heart')?.style.display = 'none';
+        document.querySelector('.broken-heart')?.style.display = 'block';
+    }
+    // Kalau berhasil klik No sebelum limit → abaikan atau kasih pesan
+    // alert("Yah... tapi coba lagi yuk? 😏"); // Optional
+}
+
+function dodgeButton(event) {
+    if (noButtonDodgeCount >= maxDodges) return;
+
+    // Blokir default di touch agar tidak langsung click
+    if (event.type.startsWith('touch')) {
+        event.preventDefault();
+    }
+
+    let clientX, clientY;
+    if (event.type.startsWith('touch')) {
+        if (event.touches.length === 0) return;
+        clientX = event.touches[0].clientX;
+        clientY = event.touches[0].clientY;
+    } else {
+        clientX = event.clientX;
+        clientY = event.clientY;
+    }
+
+    noButtons.forEach(btn => {
+        const rect = btn.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const distance = Math.hypot(clientX - centerX, clientY - centerY);
+
+        if (distance < 100) {  // Sesuaikan radius dodge (100-140px)
+            hasDodged = true; // Set flag: sekarang blokir klik
+
+            const angle = Math.atan2(clientY - centerY, clientX - centerX);
+            const dodgeDist = 180 + Math.random() * 100;
+
+            let newX = centerX - Math.cos(angle) * dodgeDist;
+            let newY = centerY - Math.sin(angle) * dodgeDist;
+
+            newX = Math.max(20, Math.min(window.innerWidth - rect.width - 20, newX));
+            newY = Math.max(20, Math.min(window.innerHeight - rect.height - 80, newY));
+
+            btn.style.position = 'fixed';
+            btn.style.left = `${newX}px`;
+            btn.style.top = `${newY}px`;
+            btn.style.transform = 'scale(1.12) rotate(5deg)'; // Efek lucu tambahan
+
+            noButtonDodgeCount++;
+            console.log(`Dodge #${noButtonDodgeCount}`);
+
+            if (noButtonDodgeCount >= maxDodges) {
+                handleNo();
+            }
+        }
+    });
+}
+
+// Blokir klik/tap setelah dodge atau selama touch
+function blockClick(event) {
+    if (hasDodged || noButtonDodgeCount > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
     }
 }
 
-function dodgeNo() {
-    if (noButtonDodgeCount < maxDodges) {
-        const btn = document.querySelector('.btn.no');
-        btn.style.transform = `translate(${Math.random() * 200 - 150}px, ${Math.random() * 150 - 100}px)`;
-        noButtonDodgeCount++;
-    }
-}
+document.addEventListener('DOMContentLoaded', () => {
+    // Dodge events
+    document.addEventListener('mousemove', dodgeButton);
+    document.addEventListener('touchmove', dodgeButton, { passive: false });
+    document.addEventListener('touchstart', dodgeButton, { passive: false });
+
+    // Blokir klik pada tombol No
+    noButtons.forEach(btn => {
+        btn.addEventListener('click', blockClick);
+        btn.addEventListener('touchend', blockClick, { passive: false });
+        btn.addEventListener('mouseup', blockClick);
+    });
+
+    // Reset flag saat reset questions
+    window.addEventListener('resetQuestionsCustom', () => {
+        hasDodged = false;
+    });
+});
 
 function resetQuestions() {
     document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
@@ -36,34 +114,18 @@ function resetQuestions() {
     document.querySelector('.heart').style.display = 'block';
     document.querySelector('.broken-heart').style.display = 'none';
     noButtonDodgeCount = 0;
-    const noBtn = document.querySelector('.btn.no');
-    noBtn.style.transform = 'none';
+    hasDodged = false;
+
+    noButtons.forEach(btn => {
+        btn.style.position = '';
+        btn.style.left = '';
+        btn.style.top = '';
+        btn.style.transform = '';
+    });
+
+    // Trigger custom event kalau perlu
+    window.dispatchEvent(new Event('resetQuestionsCustom'));
 }
 
-function celebrateAcceptance() {
-    const container = document.querySelector('.floating-hearts');
-    for (let i = 0; i < 15; i++) {
-        createHeart(container);
-    }
-}
-
-function createHeart(container) {
-    const heart = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    heart.setAttribute('viewBox', '0 0 100 100');
-    heart.style.width = '30px';
-    heart.style.height = '30px';
-    heart.style.position = 'absolute';
-    heart.style.left = Math.random() * 100 + '%';
-    heart.style.animation = `float ${3 + Math.random() * 3}s linear infinite`;
-    
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute('d', 'M50 88.9L16.7 55.6C7.2 46.1 7.2 30.9 16.7 21.4s24.7-9.5 34.2 0L50 20.5l-0.9 0.9c9.5-9.5 24.7-9.5 34.2 0s9.5 24.7 0 34.2L50 88.9z');
-    path.style.fill = `hsl(${Math.random() * 60 + 330}, 100%, 65%)`;
-    
-    heart.appendChild(path);
-    container.appendChild(heart);
-    
-    setTimeout(() => {
-        container.removeChild(heart);
-    }, 6000);
-}
+// celebrateAcceptance dan createHeart tetap sama seperti sebelumnya
+// ... (copy paste dari kode asli kamu)
