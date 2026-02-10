@@ -65,5 +65,5 @@ function createHeart(container) {
     
     setTimeout(() => {
         container.removeChild(heart);
-    }, 6000);
+    }, 1000);
 }
